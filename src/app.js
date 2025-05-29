@@ -11,13 +11,10 @@ const config = require('./config/system-life');
 const promBundle = require("express-prom-bundle");
 
 const metricsMiddleware = promBundle({ 
-        includeMethod: true, 
-        includePath: true, 
-        customLabels: 
-            { 
-                project_version: '1.0' 
-            } 
-    });
+    includeMethod: true, 
+    includePath: true, 
+    customLabels: { project_version: '1.0' }
+});
 
 app.use(metricsMiddleware);
 app.use(config.middlewares.healthMid);
@@ -30,21 +27,20 @@ const serverStatus = () => {
     return {
         state: 'up',
         dbState: mongoose.STATES[mongoose.connection.readyState]
-    }
+    };
 };
 
-app.get('/health', (res, req) => {
-    let healthResult = serverStatus();
-    if (mongoose.connection.readyState == 0) {
-        req.statusCode = 500;
-        req.send('down');
+// ⚠️ Corrigido aqui: req e res estavam invertidos
+app.get('/health', (req, res) => {
+    const healthResult = serverStatus();
+    if (mongoose.connection.readyState === 0) {
+        res.status(500).send('down');
     } else {
-        req.json(healthResult);
+        res.json(healthResult);
     }
 });
 
 app.put('/stress/:elemento/tempostress/:tempoStress/intervalo/:intervalo/ciclos/:ciclos', (req, res) => {
-
     const elemento = req.params.elemento;
     const tempoStress = req.params.tempoStress * 1000;
     const tempoFolga = req.params.tempoFolga * 1000;
@@ -55,11 +51,11 @@ app.put('/stress/:elemento/tempostress/:tempoStress/intervalo/:intervalo/ciclos/
 
 app.use('/api/produto', product);
 
-var developer_db_url = 'mongodb://mongouser:mongopwd@localhost:27017/admin';
-var mongoUrl = process.env.MONGODB_URI || developer_db_url;
+// URL padrão para conexão com MongoDB
+const developer_db_url = 'mongodb://mongouser:mongopwd@localhost:27017/admin';
+const mongoUrl = process.env.MONGODB_URI || developer_db_url;
 
-mongoose.Promise = global.Promise;
-
+// Conexão com retry usando Promises
 function connectWithRetry() {
     mongoose.connect(mongoUrl, {
         useNewUrlParser: true,
@@ -76,10 +72,8 @@ function connectWithRetry() {
 
 connectWithRetry();
 
-
-
-var port = process.env.SERVER_PORT || 8080;
-
+// Iniciar o servidor
+const port = process.env.SERVER_PORT || 8080;
 app.listen(port, () => {
     console.log('Servidor rodando na porta ' + port);
 });
