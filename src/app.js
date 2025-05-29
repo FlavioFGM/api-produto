@@ -60,16 +60,21 @@ var mongoUrl = process.env.MONGODB_URI || developer_db_url;
 
 mongoose.Promise = global.Promise;
 
-var connectWithRetry = function () {
-    return mongoose.connect(mongoUrl, function (err) {
-        if (err) {
-            console.error('Failed to connect to mongo on startup - retrying in 5 sec', err);
-            setTimeout(connectWithRetry, 5000);
-        }
-    });
+const connectWithRetry = async () => {
+    try {
+        await mongoose.connect(mongoUrl, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true
+        });
+        console.log('Conectado ao MongoDB com sucesso');
+    } catch (err) {
+        console.error('Falha ao conectar no MongoDB - tentando novamente em 5 segundos', err);
+        setTimeout(connectWithRetry, 5000);
+    }
 };
 
 connectWithRetry();
+
 
 var port = process.env.SERVER_PORT || 8080;
 
