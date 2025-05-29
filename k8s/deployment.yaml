@@ -62,7 +62,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: gabriellins/api-produto:{{tag}}
+          image: registry.virtnet/api-produto:{{tag}}
           ports: 
           - containerPort: 8080
           env: 
