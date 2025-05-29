@@ -7,6 +7,12 @@ pipeline {
 
   stages {
 
+    stage('Cleanup') {
+      steps {
+        cleanWs()  // plugin Workspace Cleanup precisa estar instalado
+      }
+    }
+
     stage('Construindo Imagem e armazenando internamente...') {
       steps {
         script {
