@@ -62,7 +62,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: registry.virtnet/flaviofgm/api-produto:{{tag}}
+          image: flaviofgm/api-produto:{{tag}}
           ports: 
           - containerPort: 8080
           env: 
