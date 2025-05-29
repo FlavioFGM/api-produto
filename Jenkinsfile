@@ -12,7 +12,7 @@ pipeline {
     stage('Construindo Imagem e armazenando internamente...') {
       steps {
         script {
-          dockerapp = docker.build("flaviofgm/api-produto:${tag_version}", ' -f ./src/Dockerfile ./src')
+          dockerapp = docker.build("flaviofgm/api-produto:${tag_version}", ' --no-cache -f ./src/Dockerfile ./src')
         }
       }
     }
