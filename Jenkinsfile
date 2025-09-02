@@ -35,16 +35,15 @@ stage('Verificando imagem localmente com NeuVector') {
             mkdir -p ${WORKSPACE}/reports/neuvector
             docker run --rm \\
                 -v /var/run/docker.sock:/var/run/docker.sock \\
-                -v ${WORKSPACE}/reports/neuvector:/reports \\
                 neuvector/scanner:latest \\
                 -i flaviofgm/api-produto:${tag_version} \\
-                -o /reports/neuvector-report.json
+                | tee ${WORKSPACE}/reports/neuvector/neuvector-report.txt
             """
         }
     }
     post {
         always {
-            archiveArtifacts artifacts: 'reports/neuvector/neuvector-report.json', allowEmptyArchive: false
+            archiveArtifacts artifacts: 'reports/neuvector/neuvector-report.txt', allowEmptyArchive: false
         }
     }
 }
