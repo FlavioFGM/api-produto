@@ -31,17 +31,19 @@ pipeline {
 stage('Verificando imagem localmente com NeuVector') {
     steps {
         script {
-            sh 'mkdir -p ${WORKSPACE}/reports/neuvector'
-
             sh """
+            mkdir -p ${WORKSPACE}/reports/neuvector
             docker run --rm \\
                 -v /var/run/docker.sock:/var/run/docker.sock \\
                 -v ${WORKSPACE}/reports/neuvector:/reports \\
                 neuvector/scanner:latest \\
-                scan image flaviofgm/api-produto:${tag_version} \\
-                --json /reports/neuvector-report.json
+                -i flaviofgm/api-produto:${tag_version} \\
+                -o /reports/neuvector-report.json
             """
-
+        }
+    }
+    post {
+        always {
             archiveArtifacts artifacts: 'reports/neuvector/neuvector-report.json', allowEmptyArchive: false
         }
     }
