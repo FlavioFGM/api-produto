@@ -28,32 +28,21 @@ pipeline {
             }
         }
 
-        stage('Verificando imagem na registry temporária com NeuVector') {
+        stage('Verificando imagem localmente com NeuVector') {
             steps {
                 script {
-                    // Analisar vulnerabilidades antes de mandar para registry de produção
-                    neuvectorScan(
-                        nameOfVulnerabilityToExemptOne: '',
-                        nameOfVulnerabilityToExemptTwo: '',
-                        nameOfVulnerabilityToExemptThree: '',
-                        nameOfVulnerabilityToExemptFour: '',
-                        nameOfVulnerabilityToFailOne: '',
-                        nameOfVulnerabilityToFailTwo: '',
-                        nameOfVulnerabilityToFailThree: '',
-                        nameOfVulnerabilityToFailFour: '',
-                        numberOfHighSeverityToFail: '',
-                        numberOfMediumSeverityToFail: '',
-                        registrySelection: 'DockerHub',
-                        repository: 'flaviofgm/api-produto',
-                        scanLayers: true,
-                        scanTimeout: 10,
-                        tag: 'latest'
-                    )
+                    // Rodando o scan local da imagem
+                    sh """
+                    docker run --rm \\
+                        -v /var/run/docker.sock:/var/run/docker.sock \\
+                        neuvector/scanner:latest \\
+                        scan --docker-image flaviofgm/api-produto:${tag_version}
+                    """
                 }
             }
         }
-
-        stage('Enviando imagem para registry de produção') {
+        
+	stage('Enviando imagem para registry de produção') {
             steps {
                 script {
                     docker.withRegistry('https://registry.virtnet', 'cred-harbor') {
