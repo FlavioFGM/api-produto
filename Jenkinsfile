@@ -29,19 +29,26 @@ pipeline {
         }
 
         stage('Verificando imagem localmente com NeuVector') {
-            steps {
-                script {
-                    // Rodando o scan local da imagem
-                    sh """
-                    docker run --rm \\
-                        -v /var/run/docker.sock:/var/run/docker.sock \\
-                        neuvector/scanner:latest \\
-                        scan --docker-image flaviofgm/api-produto:${tag_version}
-                    """
-                }
-            }
+    steps {
+        script {
+            // Diretório para salvar relatório
+            sh 'mkdir -p reports/neuvector'
+
+            // Rodando o scan e salvando relatório JSON
+            sh """
+            docker run --rm \\
+                -v /var/run/docker.sock:/var/run/docker.sock \\
+                -v ${WORKSPACE}/reports/neuvector:/reports \\
+                neuvector/scanner:latest \\
+                scan --docker-image flaviofgm/api-produto:${tag_version} \\
+                     --json /reports/neuvector-report.json
+            """
+
+            // Arquivando relatório no Jenkins
+            archiveArtifacts artifacts: 'reports/neuvector/neuvector-report.json', allowEmptyArchive: true
         }
-        
+    }
+}
 	stage('Enviando imagem para registry de produção') {
             steps {
                 script {
