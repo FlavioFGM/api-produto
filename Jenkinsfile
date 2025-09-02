@@ -7,8 +7,6 @@ pipeline {
 
   stages {
 
-
-
     stage('Construindo Imagem e armazenando internamente...') {
       steps {
         script {
@@ -27,6 +25,31 @@ pipeline {
       }
     }
 
+    stage('Verificando imagem na registry temporária com NeuVector') {
+      steps {
+        script {
+          // Analisar vulnerabilidades antes de mandar para registry de produção
+          neuvectorScan(
+            nameOfVulnerabilityToExemptOne: '',
+            nameOfVulnerabilityToExemptTwo: '',
+            nameOfVulnerabilityToExemptThree: '',
+            nameOfVulnerabilityToExemptFour: '',
+            nameOfVulnerabilityToFailOne: '',
+            nameOfVulnerabilityToFailTwo: '',
+            nameOfVulnerabilityToFailThree: '',
+            nameOfVulnerabilityToFailFour: '',
+            numberOfHighSeverityToFail: '',
+            numberOfMediumSeverityToFail: '',
+            registrySelection: 'DockerHub',
+            repository: 'flaviofgm/api-produto',
+            scanLayers: true,
+            scanTimeout: 10,
+            tag: 'latest'
+          )
+        }
+      }
+    }
+
     stage('Deploy da aplicação no cluster "rasp-cluster"') {
       steps {
         withKubeConfig([credentialsId: 'kubeconfig-rasp-cluster']) {
@@ -38,3 +61,4 @@ pipeline {
 
   }
 }
+
