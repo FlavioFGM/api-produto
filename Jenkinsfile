@@ -52,7 +52,7 @@ stage('Verificando imagem localmente com NeuVector') {
 	stage('Enviando imagem para registry de produção') {
             steps {
                 script {
-                    docker.withRegistry('https://registry.virtnet:30002', 'cred-harbor') {
+                    docker.withRegistry('https://registry.virtnet', 'cred-harbor') {
                         dockerapp.push("${tag_version}")
                     }
                 }
