@@ -61,7 +61,7 @@ stage('Verificando imagem localmente com NeuVector') {
 
         stage('Deploy da aplicação no cluster "rasp-cluster"') {
             steps {
-                withKubeConfig([credentialsId: 'kubeconfig-rasp-cluster']) {
+                withKubeConfig([credentialsId: 'kubeconfig']) {
                     sh 'sed -i "s/{{tag}}/${tag_version}/g" ./k8s/deployment.yaml'
                     sh 'kubectl apply -f ./k8s/deployment.yaml -n ci-cd'
                 }
