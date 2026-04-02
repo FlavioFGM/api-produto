@@ -27,23 +27,15 @@ pipeline {
 
         stage ('Scan image with Neuvector (Standalone)') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'cred-dockerhub', passwordVariable: 'DOCKERHUB_PWD', usernameVariable: 'DOCKERHUB_USER')]) {
-                    script {
-                        echo "Iniciando Scan Standalone (Sem Controller)..."
-                        // Usamos as flags que o seu log confirmou: -registry, -repository, -tag
-                        // O -u aponta para o socket do docker para o scanner funcionar
-                        sh """
-                            docker run --rm --name nv_scanner \
-                            -v /var/run/docker.sock:/var/run/docker.sock \
-                            neuvector/scanner:latest \
-                            -registry https://index.docker.io/v1/ \
-                            -reg_user ${DOCKERHUB_USER} \
-                            -reg_password '${DOCKERHUB_PWD}' \
-                            -repository ${DOCKER_IMAGE} \
-                            -tag ${IMAGE_TAG} \
-                            -scan_layers
-                        """
-                    }
+                script {
+                    echo "Iniciando Scan Standalone via Socket..."
+                    // Usando a flag -i para escanear a imagem local via socket
+                    sh """
+                        docker run --rm --name nv_scanner \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
+                        neuvector/scanner:latest \
+                        -i ${DOCKER_IMAGE}:${IMAGE_TAG}
+                    """
                 }
             }
         }
@@ -60,9 +52,9 @@ pipeline {
 
         stage ('Deploy app in kubernetes cluster') {
             steps {
+                // Certifique-se de atualizar o token no Jenkins Credentials 'kubeconfig'
                 withKubeConfig([credentialsId: 'kubeconfig']) {
                     sh "sed -i 's/{{tag}}/${IMAGE_TAG}/g' ./k8s/deployment.yaml"
-                    // --validate=false ignora o erro de DNS ao baixar o schema do k8s
                     sh 'kubectl apply -f ./k8s/deployment.yaml -n ci-cd --validate=false'
                 }
             }
