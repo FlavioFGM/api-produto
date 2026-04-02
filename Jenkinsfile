@@ -28,25 +28,15 @@ pipeline {
             }
         }
 
-stage('Verificando imagem com NeuVector') {
-    steps {
-        script {
-            sh """
-            mkdir -p ${WORKSPACE}/reports/neuvector
-            docker run --rm \
-                neuvector/scanner:latest \
-                -r docker.io \
-                -i flaviofgm/api-produto:${tag_version} \
-                | tee ${WORKSPACE}/reports/neuvector/neuvector-report.txt
-            """
+        stage ('Scan image in the DEV registry with Neuvector') {
+            steps {
+                script {
+                    //Analyze vulnerabilities before pushing to the production registry. If any vulnerability is found.
+
+                    neuvector nameOfVulnerabilityToExemptFour: '', nameOfVulnerabilityToExemptOne: '', nameOfVulnerabilityToExemptThree: '', nameOfVulnerabilityToExemptTwo: '', nameOfVulnerabilityToFailFour: '', nameOfVulnerabilityToFailOne: '', nameOfVulnerabilityToFailThree: '', nameOfVulnerabilityToFailTwo: '', numberOfHighSeverityToFail: '1', numberOfMediumSeverityToFail: '', registrySelection: 'DockerHub', repository: 'gabriellins/api-produto', scanLayers: true, scanTimeout: 10, tag: 'latest'
+                }
+            }
         }
-    }
-    post {
-        always {
-            archiveArtifacts artifacts: 'reports/neuvector/neuvector-report.txt', allowEmptyArchive: false
-        }
-    }
-}
 
 
 	stage('Enviando imagem para registry de produção') {
