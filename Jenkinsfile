@@ -28,15 +28,15 @@ pipeline {
             }
         }
 
-stage('Verificando imagem localmente com NeuVector') {
+stage('Verificando imagem com NeuVector') {
     steps {
         script {
             sh """
             mkdir -p ${WORKSPACE}/reports/neuvector
-            docker run --rm \\
-                -v /var/run/docker.sock:/var/run/docker.sock \\
-                neuvector/scanner:latest \\
-                -i flaviofgm/api-produto:${tag_version} \\
+            docker run --rm \
+                neuvector/scanner:latest \
+                -r docker.io \
+                -i flaviofgm/api-produto:${tag_version} \
                 | tee ${WORKSPACE}/reports/neuvector/neuvector-report.txt
             """
         }
