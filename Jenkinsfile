@@ -22,20 +22,15 @@ pipeline {
             }
         }
 
-stage ('Scan image in the DEV registry with Neuvector') {
-    steps {
-        script {
-            neuvector (
-               
-                registrySelection: 'DockerHub', 
-                repository: 'flaviofgm/api-produto',
-                tag: 'latest',
-                scanLayers: true, 
-                numberOfHighSeverityToFail: '1'
-            )
+        stage ('Scan image in the DEV registry with Neuvector') {
+            steps {
+                script {
+                    //Analyze vulnerabilities before pushing to the production registry. If any vulnerability is found.
+
+                    neuvector nameOfVulnerabilityToExemptFour: '', nameOfVulnerabilityToExemptOne: '', nameOfVulnerabilityToExemptThree: '', nameOfVulnerabilityToExemptTwo: '', nameOfVulnerabilityToFailFour: '', nameOfVulnerabilityToFailOne: '', nameOfVulnerabilityToFailThree: '', nameOfVulnerabilityToFailTwo: '', numberOfHighSeverityToFail: '1', numberOfMediumSeverityToFail: '', registrySelection: 'DockerHub', repository: 'flaviofgm/api-produto', scanLayers: true, scanTimeout: 10, tag: 'latest'
+                }
+            }
         }
-    }
-}
 
         stage ('Send image to production registry') {
             steps {
