@@ -31,42 +31,45 @@ pipeline {
             }
         }
 
-        stage ('Scan image with Ephemeral Neuvector') {
-            steps {
-                script {
-                    try {
-                        echo "Iniciando container temporário do NeuVector..."
-                        // Sobe o container que o 'Localhost-Scanner' (localhost:8443) vai acessar
-                        sh """
-                            docker run -d --name nv_temp_scanner \
-                            -p 8443:8443 \
-                            -e CLUSTER_JOIN_ADDR=127.0.0.1 \
-                            -e CTRL_USER_INITIAL_ADMIN_PASSWORD=admin \
-                            neuvector/allinone:latest
-                        """
+stage ('Scan image with Ephemeral Neuvector') {
+    steps {
+        script {
+            try {
+                echo "Subindo NeuVector All-in-One..."
+                sh """
+                    docker run -d --name nv_temp \
+                    -p 8443:8443 \
+                    -e CLUSTER_JOIN_ADDR=127.0.0.1 \
+                    -e CTRL_USER_INITIAL_ADMIN_PASSWORD=admin \
+                    neuvector/allinone:latest
+                """
+                
+                echo "Aguardando 30s..."
+                sleep 30
 
-                        echo "Aguardando inicialização da API (30s)..."
-                        sleep 30
+                echo "Executando Scan via Docker Exec (Ignorando Plugin)..."
+                // Aqui usamos o binário de scan que já vem dentro do container que subimos!
+                sh """
+                    docker exec nv_temp /usr/local/bin/scan \
+                    -ctrl_ip 127.0.0.1 \
+                    -ctrl_port 8443 \
+                    -user admin \
+                    -password admin \
+                    -repository ${DOCKER_IMAGE} \
+                    -tag ${IMAGE_TAG} \
+                    -registry https://index.docker.io/v1/ \
+                    -reg_user flaviofgm \
+                    -reg_password ${env.DOCKERHUB_PASSWORD} \
+                    -fail_high 1
+                """
 
-                        echo "Iniciando Scan com o Controller: Localhost-Scanner"
-                        neuvector(
-                            sel_controller: 'Localhost-Scanner',
-                            numberOfHighSeverityToFail: '1',
-                            registrySelection: 'DockerHub',
-                            repository: "${DOCKER_IMAGE}",
-                            tag: "${IMAGE_TAG}",
-                            scanLayers: true,
-                            scanTimeout: 10
-                        )
-
-                    } finally {
-                        // O 'finally' garante que o container morra mesmo se o scan falhar por vulnerabilidades
-                        echo "Limpando container do NeuVector..."
-                        sh "docker rm -f nv_temp_scanner"
-                    }
-                }
+            } finally {
+                echo "Limpando..."
+                sh "docker rm -f nv_temp"
             }
         }
+    }
+}
 
         stage ('Send image to production registry') {
             steps {
