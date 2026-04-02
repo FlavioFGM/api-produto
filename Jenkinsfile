@@ -1,12 +1,21 @@
 pipeline {
     agent any
 
+    environment {
+        // Variáveis para facilitar a manutenção
+        DOCKER_IMAGE = "flaviofgm/api-produto"
+        IMAGE_TAG = "latest"
+    }
+
     stages {
         stage ('Build image locally...') {
             steps {
                 script {
-                    // Armazenamos a imagem em uma variável para usar depois
-                    dockerapp = docker.build("flaviofgm/api-produto:latest", "-f ./src/Dockerfile ./src")
+                    // O 'def' resolve o aviso de WorkflowScript/memory leak
+                    def dockerapp = docker.build("${DOCKER_IMAGE}:${IMAGE_TAG}", "-f ./src/Dockerfile ./src")
+                    
+                    // Salvando na variável global do pipeline para os próximos stages
+                    env.DOCKER_APP_ID = dockerapp.id
                 }
             }
         }
@@ -15,7 +24,8 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry('https://registry.hub.docker.com', 'cred-dockerhub') {
-                        dockerapp.push('latest')
+                        def img = docker.image("${DOCKER_IMAGE}:${IMAGE_TAG}")
+                        img.push()
                     }
                 }
             }
@@ -25,8 +35,8 @@ pipeline {
             steps {
                 script {
                     try {
-                        // 1. Sobe o NeuVector All-in-One localmente
                         echo "Iniciando container temporário do NeuVector..."
+                        // Sobe o container que o 'Localhost-Scanner' (localhost:8443) vai acessar
                         sh """
                             docker run -d --name nv_temp_scanner \
                             -p 8443:8443 \
@@ -35,25 +45,22 @@ pipeline {
                             neuvector/allinone:latest
                         """
 
-                        // 2. Aguarda a API do NeuVector estabilizar
-                        echo "Aguardando inicialização (30s)..."
+                        echo "Aguardando inicialização da API (30s)..."
                         sleep 30
 
-                        // 3. Executa o Scan apontando para o localhost
-                        // IMPORTANTE: 'cred-neuvector-default' deve ser admin/admin no Jenkins
+                        echo "Iniciando Scan com o Controller: Localhost-Scanner"
                         neuvector(
-                            controllerApiUrl: 'https://localhost:8443',
-                            credentialsId: 'cred-neuvector-default', 
-                            registrySelection: 'DockerHub',
-                            repository: 'flaviofgm/api-produto',
-                            tag: 'latest',
-                            scanLayers: true,
+                            sel_controller: 'Localhost-Scanner',
                             numberOfHighSeverityToFail: '1',
+                            registrySelection: 'DockerHub',
+                            repository: "${DOCKER_IMAGE}",
+                            tag: "${IMAGE_TAG}",
+                            scanLayers: true,
                             scanTimeout: 10
                         )
 
                     } finally {
-                        // 4. Mata e remove o container, mesmo se o scan falhar ou der erro
+                        // O 'finally' garante que o container morra mesmo se o scan falhar por vulnerabilidades
                         echo "Limpando container do NeuVector..."
                         sh "docker rm -f nv_temp_scanner"
                     }
@@ -62,23 +69,21 @@ pipeline {
         }
 
         stage ('Send image to production registry') {
-            // Este estágio só roda se o scan acima passar (não encontrar vulnerabilidades críticas)
             steps {
                 script {
                     docker.withRegistry('https://registry.virtnet/api-produto/', 'cred-harbor') {
-                        dockerapp.push('latest')
+                        def img = docker.image("${DOCKER_IMAGE}:${IMAGE_TAG}")
+                        img.push()
                     }
                 }
             }
         }
 
         stage ('Deploy app in kubernetes cluster "rasp-cluster"') {
-            environment {
-                tag_version = "latest"
-            }
             steps {
                 withKubeConfig([credentialsId: 'kubeconfig']) {
-                    sh 'sed -i "s/{{tag}}/$tag_version/g" ./k8s/deployment.yaml'
+                    // Substitui a tag no YAML e aplica no cluster
+                    sh "sed -i 's/{{tag}}/${IMAGE_TAG}/g' ./k8s/deployment.yaml"
                     sh 'kubectl apply -f ./k8s/deployment.yaml -n ci-cd'
                 }
             }
