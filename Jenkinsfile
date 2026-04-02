@@ -33,39 +33,44 @@ pipeline {
 
 stage ('Scan image with Ephemeral Neuvector') {
     steps {
-        script {
-            try {
-                echo "Subindo NeuVector All-in-One..."
-                sh """
-                    docker run -d --name nv_temp \
-                    -p 8443:8443 \
-                    -e CLUSTER_JOIN_ADDR=127.0.0.1 \
-                    -e CTRL_USER_INITIAL_ADMIN_PASSWORD=admin \
-                    neuvector/allinone:latest
-                """
-                
-                echo "Aguardando 30s..."
-                sleep 30
+        // Usamos withCredentials para pegar a senha do DockerHub com segurança
+        withCredentials([usernamePassword(credentialsId: 'cred-dockerhub', passwordVariable: 'DOCKERHUB_PWD', usernameVariable: 'DOCKERHUB_USER')]) {
+            script {
+                try {
+                    echo "1. Subindo o 'Cérebro' do NeuVector (Controller)..."
+                    sh """
+                        docker run -d --name nv_controller \
+                        -p 8443:8443 \
+                        -e CLUSTER_JOIN_ADDR=127.0.0.1 \
+                        -e CTRL_USER_INITIAL_ADMIN_PASSWORD=admin \
+                        neuvector/allinone:latest
+                    """
 
-                echo "Executando Scan via Docker Exec (Ignorando Plugin)..."
-                // Aqui usamos o binário de scan que já vem dentro do container que subimos!
-                sh """
-                    docker exec nv_temp /usr/local/bin/scan \
-                    -ctrl_ip 127.0.0.1 \
-                    -ctrl_port 8443 \
-                    -user admin \
-                    -password admin \
-                    -repository ${DOCKER_IMAGE} \
-                    -tag ${IMAGE_TAG} \
-                    -registry https://index.docker.io/v1/ \
-                    -reg_user flaviofgm \
-                    -reg_password ${env.DOCKERHUB_PASSWORD} \
-                    -fail_high 1
-                """
+                    echo "Aguardando inicialização (40s)..."
+                    sleep 40
 
-            } finally {
-                echo "Limpando..."
-                sh "docker rm -f nv_temp"
+                    echo "2. Rodando o Scanner dedicado..."
+                    // Aqui usamos a imagem neuvector/scanner, que é feita para CLI
+                    sh """
+                        docker run --rm --name nv_scanner \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
+                        neuvector/scanner:latest \
+                        -ctrl_ip 127.0.0.1 \
+                        -ctrl_port 8443 \
+                        -user admin \
+                        -password admin \
+                        -registry https://index.docker.io/v1/ \
+                        -reg_user ${DOCKERHUB_USER} \
+                        -reg_password ${DOCKERHUB_PWD} \
+                        -repository flaviofgm/api-produto \
+                        -tag latest \
+                        -fail_high 1
+                    """
+
+                } finally {
+                    echo "3. Limpando ambiente..."
+                    sh "docker rm -f nv_controller"
+                }
             }
         }
     }
